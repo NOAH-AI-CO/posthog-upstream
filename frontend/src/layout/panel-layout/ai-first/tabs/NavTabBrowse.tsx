@@ -8,6 +8,8 @@ import {
     IconDatabase,
     IconFolder,
     IconFolderOpen,
+    IconGear,
+    IconGraph,
     IconHome,
     IconNotification,
     IconCheck,
@@ -32,7 +34,8 @@ import { humanFriendlyDetailedTime } from 'lib/utils/datetime'
 import { removeProjectIdIfPresent } from 'lib/utils/kea-router'
 import { urls } from 'scenes/urls'
 
-import { navigationLogic } from '~/layout/navigation/navigationLogic'
+import { beoneCopy } from '~/beone/copy.zh'
+import { BEONE_PRIMARY_NAV, BeOneNavId } from '~/beone/nav'
 import { NavLink } from '~/layout/panel-layout/ai-first/NavLink'
 import { PanelLayoutNavIdentifier, panelLayoutLogic } from '~/layout/panel-layout/panelLayoutLogic'
 import { iconForType } from '~/layout/panel-layout/ProjectTree/defaultTree'
@@ -40,12 +43,18 @@ import { ProjectTree } from '~/layout/panel-layout/ProjectTree/ProjectTree'
 import { projectTreeDataLogic } from '~/layout/panel-layout/ProjectTree/projectTreeDataLogic'
 import { joinPath, splitPath, unescapePath } from '~/layout/panel-layout/ProjectTree/utils'
 import { FileSystemEntry, FileSystemIconType } from '~/queries/schema/schema-general'
-import { ActivityTab } from '~/types'
 
 import { BrowserLikeMenuItems } from '../../ProjectTree/menus/BrowserLikeMenuItems'
 import { PanelIndicatorIcon, SectionTrigger } from '../Nav'
 import { editToolsLogic } from './editToolsLogic'
 import { navRecentsLogic } from './navRecentsLogic'
+
+const BEONE_NAV_ICONS: Record<BeOneNavId, React.ReactNode> = {
+    home: <IconHome />,
+    activity: <IconClock />,
+    insights: <IconGraph />,
+    settings: <IconGear />,
+}
 
 const panelTriggerItems: {
     identifier: PanelLayoutNavIdentifier
@@ -168,7 +177,6 @@ export function NavTabBrowse(): JSX.Element {
     const { recentItems, recentItemsLoading } = useValues(navRecentsLogic)
     const { isEditMode, checkedTools } = useValues(editToolsLogic)
     const { enterEditMode, saveAndExitEditMode, toggleTool } = useActions(editToolsLogic)
-    const { showConfigureHomeModal } = useActions(navigationLogic)
     const currentPath = removeProjectIdIfPresent(pathname)
 
     function handlePanelTriggerClick(item: PanelLayoutNavIdentifier): void {
@@ -205,6 +213,36 @@ export function NavTabBrowse(): JSX.Element {
                     <SectionTrigger icon={<IconFolder />} label="Project" isCollapsed={isLayoutNavCollapsed} />
                 )}
                 <Collapsible.Panel className={cn('pl-2 pt-1', isLayoutNavCollapsed && 'items-center pl-0')}>
+                    {BEONE_PRIMARY_NAV.map((item) => (
+                        <NavLink
+                            key={item.id}
+                            to={item.path()}
+                            label={item.label}
+                            icon={BEONE_NAV_ICONS[item.id]}
+                            isCollapsed={isLayoutNavCollapsed}
+                            data-attr={`nav-item-beone-${item.id}`}
+                            onClick={() => posthog.capture('nav item clicked', { item: `beone-${item.id}` })}
+                        />
+                    ))}
+                </Collapsible.Panel>
+            </Collapsible>
+
+            <Collapsible
+                open={expandedNavSections.more || isLayoutNavCollapsed ? true : false}
+                onOpenChange={() => {
+                    posthog.capture('nav section toggled', {
+                        section: 'more',
+                        is_open: !expandedNavSections.more,
+                    })
+                    toggleNavSection('more')
+                }}
+                className="mt-2"
+                data-attr="nav-section-more"
+            >
+                {!isLayoutNavCollapsed && (
+                    <SectionTrigger icon={<IconApps />} label={beoneCopy.nav.more} isCollapsed={isLayoutNavCollapsed} />
+                )}
+                <Collapsible.Panel className={cn('pl-2 pt-1', isLayoutNavCollapsed && 'items-center pl-0')}>
                     {featureFlags[FEATURE_FLAGS.QUICKSTART_HOMEPAGE] === 'test' && (
                         <NavLink
                             to={urls.quickstart()}
@@ -215,20 +253,6 @@ export function NavTabBrowse(): JSX.Element {
                             onClick={() => posthog.capture('nav item clicked', { item: 'quickstart' })}
                         />
                     )}
-
-                    <NavLink
-                        to={urls.projectRoot()}
-                        label="Home"
-                        icon={<IconHome />}
-                        isCollapsed={isLayoutNavCollapsed}
-                        data-attr="nav-item-home"
-                        onClick={() => posthog.capture('nav item clicked', { item: 'home' })}
-                        sideAction={{
-                            onClick: () => showConfigureHomeModal(),
-                            tooltip: 'Configure home',
-                            'data-attr': 'nav-configure-home',
-                        }}
-                    />
 
                     {isProductAutonomyEnabled && (
                         <NavLink
@@ -241,15 +265,6 @@ export function NavTabBrowse(): JSX.Element {
                             onClick={() => posthog.capture('nav item clicked', { item: 'inbox' })}
                         />
                     )}
-
-                    <NavLink
-                        to={urls.activity(ActivityTab.ExploreEvents)}
-                        label="Activity"
-                        icon={<IconClock />}
-                        isCollapsed={isLayoutNavCollapsed}
-                        data-attr="nav-item-activity"
-                        onClick={() => posthog.capture('nav item clicked', { item: 'activity' })}
-                    />
 
                     <div className={cn('flex flex-col gap-px', isLayoutNavCollapsed && 'items-center')}>
                         {panelTriggerItems.map((item) => {
@@ -308,136 +323,142 @@ export function NavTabBrowse(): JSX.Element {
                             )
                         })}
                     </div>
+
+                    {!isLayoutNavCollapsed && (
+                        <Collapsible
+                            open={expandedNavSections.recents ?? false}
+                            onOpenChange={() => {
+                                posthog.capture('nav section toggled', {
+                                    section: 'recents',
+                                    is_open: !expandedNavSections.recents,
+                                })
+                                toggleNavSection('recents')
+                            }}
+                            className="mt-2 group/colorful-product-icons colorful-product-icons-true"
+                            data-attr="nav-section-recents"
+                        >
+                            <SectionTrigger icon={<IconClock />} label="Recents" isCollapsed={isLayoutNavCollapsed} />
+                            <Collapsible.Panel className="pl-2">
+                                {recentItemsLoading && recentItems.length === 0 ? (
+                                    <div className="flex items-center justify-center py-2">
+                                        <Spinner className="size-4" />
+                                    </div>
+                                ) : recentItems.length === 0 ? (
+                                    <span className="text-xs text-tertiary px-2 py-1">No recent items</span>
+                                ) : (
+                                    recentItems.map((item: FileSystemEntry) => {
+                                        const name = getItemName(item)
+                                        const isActive = item.href ? currentPath === item.href : false
+                                        return (
+                                            <Tooltip title={name} placement="right" key={item.id}>
+                                                <LinkListItem.Root>
+                                                    <LinkListItem.Group>
+                                                        <Link
+                                                            to={item.href}
+                                                            buttonProps={{
+                                                                menuItem: true,
+                                                                active: isActive,
+                                                                className: 'group -outline-offset-2 pr-0',
+                                                            }}
+                                                            data-attr={`nav-recent-item-${item.id}`}
+                                                        >
+                                                            <LinkListItem.Content
+                                                                icon={iconForType(item.type as FileSystemIconType)}
+                                                                title={name}
+                                                                meta={
+                                                                    <span
+                                                                        title={humanFriendlyDetailedTime(
+                                                                            item.last_viewed_at
+                                                                        )}
+                                                                    >
+                                                                        {formatRelativeDate(item.last_viewed_at)}
+                                                                    </span>
+                                                                }
+                                                            />
+                                                        </Link>
+                                                        <LinkListItem.Trigger />
+                                                    </LinkListItem.Group>
+                                                    <LinkListItem.Actions>
+                                                        <AddToStarredDropdownAction item={item} />
+                                                    </LinkListItem.Actions>
+                                                </LinkListItem.Root>
+                                            </Tooltip>
+                                        )
+                                    })
+                                )}
+                            </Collapsible.Panel>
+                        </Collapsible>
+                    )}
+
+                    {!isLayoutNavCollapsed && (
+                        <Collapsible
+                            open={expandedNavSections.tools ?? false}
+                            onOpenChange={() => {
+                                posthog.capture('nav section toggled', {
+                                    section: 'tools',
+                                    is_open: !expandedNavSections.tools,
+                                })
+                                toggleNavSection('tools')
+                            }}
+                            className="mt-2 group/colorful-product-icons colorful-product-icons-true"
+                            data-attr="nav-section-tools"
+                        >
+                            <div className="relative">
+                                <SectionTrigger
+                                    icon={<IconApps />}
+                                    label="My Tools"
+                                    isCollapsed={isLayoutNavCollapsed}
+                                />
+                                {expandedNavSections.tools && (
+                                    <ButtonPrimitive
+                                        iconOnly
+                                        size="xs"
+                                        tooltip={isEditMode ? 'Save' : 'Choose which tools to show in the sidebar'}
+                                        tooltipPlacement="top"
+                                        onClick={() => {
+                                            if (isEditMode) {
+                                                posthog.capture('nav tools edit saved')
+                                                saveAndExitEditMode()
+                                            } else {
+                                                posthog.capture('nav tools edit toggled', { is_editing: true })
+                                                enterEditMode()
+                                            }
+                                        }}
+                                        data-attr="nav-tools-edit-button"
+                                        className="absolute right-1 top-0 bottom-0 my-auto rounded-[var(--radius)] z-5"
+                                    >
+                                        {isEditMode ? (
+                                            <IconCheck className="size-3 text-primary" />
+                                        ) : (
+                                            <IconPencil className="size-3 text-secondary" />
+                                        )}
+                                    </ButtonPrimitive>
+                                )}
+                            </div>
+                            <Collapsible.Panel className="pl-1 pr-1">
+                                {(expandedNavSections.tools ?? false) && (
+                                    <ProjectTree
+                                        root={isEditMode ? 'products://' : 'custom-products://'}
+                                        onlyTree
+                                        treeSize={isLayoutNavCollapsed ? 'narrow' : 'default'}
+                                        selectModeOverride={isEditMode ? 'multi' : undefined}
+                                        checkedItemsOverride={isEditMode ? checkedTools : undefined}
+                                        onItemCheckedOverride={
+                                            isEditMode
+                                                ? (id) => {
+                                                      // Tree item IDs for products:// are "products/{path}"
+                                                      const toolPath = id.replace(/^products\//, '')
+                                                      toggleTool(toolPath)
+                                                  }
+                                                : undefined
+                                        }
+                                    />
+                                )}
+                            </Collapsible.Panel>
+                        </Collapsible>
+                    )}
                 </Collapsible.Panel>
             </Collapsible>
-
-            {!isLayoutNavCollapsed && (
-                <Collapsible
-                    open={expandedNavSections.recents ?? false}
-                    onOpenChange={() => {
-                        posthog.capture('nav section toggled', {
-                            section: 'recents',
-                            is_open: !expandedNavSections.recents,
-                        })
-                        toggleNavSection('recents')
-                    }}
-                    className="mt-2 group/colorful-product-icons colorful-product-icons-true"
-                    data-attr="nav-section-recents"
-                >
-                    <SectionTrigger icon={<IconClock />} label="Recents" isCollapsed={isLayoutNavCollapsed} />
-                    <Collapsible.Panel className="pl-2">
-                        {recentItemsLoading && recentItems.length === 0 ? (
-                            <div className="flex items-center justify-center py-2">
-                                <Spinner className="size-4" />
-                            </div>
-                        ) : recentItems.length === 0 ? (
-                            <span className="text-xs text-tertiary px-2 py-1">No recent items</span>
-                        ) : (
-                            recentItems.map((item: FileSystemEntry) => {
-                                const name = getItemName(item)
-                                const isActive = item.href ? currentPath === item.href : false
-                                return (
-                                    <Tooltip title={name} placement="right" key={item.id}>
-                                        <LinkListItem.Root>
-                                            <LinkListItem.Group>
-                                                <Link
-                                                    to={item.href}
-                                                    buttonProps={{
-                                                        menuItem: true,
-                                                        active: isActive,
-                                                        className: 'group -outline-offset-2 pr-0',
-                                                    }}
-                                                    data-attr={`nav-recent-item-${item.id}`}
-                                                >
-                                                    <LinkListItem.Content
-                                                        icon={iconForType(item.type as FileSystemIconType)}
-                                                        title={name}
-                                                        meta={
-                                                            <span
-                                                                title={humanFriendlyDetailedTime(item.last_viewed_at)}
-                                                            >
-                                                                {formatRelativeDate(item.last_viewed_at)}
-                                                            </span>
-                                                        }
-                                                    />
-                                                </Link>
-                                                <LinkListItem.Trigger />
-                                            </LinkListItem.Group>
-                                            <LinkListItem.Actions>
-                                                <AddToStarredDropdownAction item={item} />
-                                            </LinkListItem.Actions>
-                                        </LinkListItem.Root>
-                                    </Tooltip>
-                                )
-                            })
-                        )}
-                    </Collapsible.Panel>
-                </Collapsible>
-            )}
-
-            {!isLayoutNavCollapsed && (
-                <Collapsible
-                    open={expandedNavSections.tools ?? false}
-                    onOpenChange={() => {
-                        posthog.capture('nav section toggled', {
-                            section: 'tools',
-                            is_open: !expandedNavSections.tools,
-                        })
-                        toggleNavSection('tools')
-                    }}
-                    className="mt-2 group/colorful-product-icons colorful-product-icons-true"
-                    data-attr="nav-section-tools"
-                >
-                    <div className="relative">
-                        <SectionTrigger icon={<IconApps />} label="My Tools" isCollapsed={isLayoutNavCollapsed} />
-                        {expandedNavSections.tools && (
-                            <ButtonPrimitive
-                                iconOnly
-                                size="xs"
-                                tooltip={isEditMode ? 'Save' : 'Choose which tools to show in the sidebar'}
-                                tooltipPlacement="top"
-                                onClick={() => {
-                                    if (isEditMode) {
-                                        posthog.capture('nav tools edit saved')
-                                        saveAndExitEditMode()
-                                    } else {
-                                        posthog.capture('nav tools edit toggled', { is_editing: true })
-                                        enterEditMode()
-                                    }
-                                }}
-                                data-attr="nav-tools-edit-button"
-                                className="absolute right-1 top-0 bottom-0 my-auto rounded-[var(--radius)] z-5"
-                            >
-                                {isEditMode ? (
-                                    <IconCheck className="size-3 text-primary" />
-                                ) : (
-                                    <IconPencil className="size-3 text-secondary" />
-                                )}
-                            </ButtonPrimitive>
-                        )}
-                    </div>
-                    <Collapsible.Panel className="-ml-2 pl-3 pr-1 w-[calc(100%+(var(--spacing)*4))]">
-                        {(expandedNavSections.tools ?? false) && (
-                            <ProjectTree
-                                root={isEditMode ? 'products://' : 'custom-products://'}
-                                onlyTree
-                                treeSize={isLayoutNavCollapsed ? 'narrow' : 'default'}
-                                selectModeOverride={isEditMode ? 'multi' : undefined}
-                                checkedItemsOverride={isEditMode ? checkedTools : undefined}
-                                onItemCheckedOverride={
-                                    isEditMode
-                                        ? (id) => {
-                                              // Tree item IDs for products:// are "products/{path}"
-                                              const toolPath = id.replace(/^products\//, '')
-                                              toggleTool(toolPath)
-                                          }
-                                        : undefined
-                                }
-                            />
-                        )}
-                    </Collapsible.Panel>
-                </Collapsible>
-            )}
         </ScrollableShadows>
     )
 }

@@ -10,22 +10,27 @@ import { useFeatureFlag } from 'lib/hooks/useFeatureFlag'
 import { cn } from 'lib/utils/css-classes'
 import { urls } from 'scenes/urls'
 
+import { isBeOneThemeApplied } from '~/beone/applyBeOneTheme'
+
 import { InstallationStatusNavButton } from './InstallationStatusNavButton'
 
 export function NavBarFooter({ isLayoutNavCollapsed }: { isLayoutNavCollapsed: boolean }): JSX.Element {
     const isNotificationsEnabled = useFeatureFlag('REAL_TIME_NOTIFICATIONS')
+    const beone = isBeOneThemeApplied()
 
     return (
         <div className="p-1 flex flex-col gap-px items-start pb-2">
-            <div
-                className={cn('flex flex-col gap-px w-full', {
-                    'items-center': isLayoutNavCollapsed,
-                })}
-            >
-                <DebugNotice isCollapsed={isLayoutNavCollapsed} />
-            </div>
+            {!beone ? (
+                <div
+                    className={cn('flex flex-col gap-px w-full', {
+                        'items-center': isLayoutNavCollapsed,
+                    })}
+                >
+                    <DebugNotice isCollapsed={isLayoutNavCollapsed} />
+                </div>
+            ) : null}
 
-            <NavPanelAdvertisement />
+            {!beone ? <NavPanelAdvertisement /> : null}
 
             <div
                 className={cn('flex flex-col gap-px w-full', {

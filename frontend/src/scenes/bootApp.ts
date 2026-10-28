@@ -1,5 +1,7 @@
 import { registerNotebookLinkDrag } from 'scenes/notebooks/AddToNotebook/registerNotebookLinkDrag'
 
+import { applyBeOneTheme } from '~/beone/applyBeOneTheme'
+
 import { initKea } from '../initKea'
 import { loadPostHogJS } from '../loadPostHogJS'
 
@@ -21,6 +23,7 @@ export function bootApp(): void {
     }
     appBooted = true
 
+    applyBeOneTheme()
     loadPostHogJS()
     // Kea must initialize before any component mounts
     initKea()

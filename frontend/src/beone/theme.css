@@ -1,0 +1,117 @@
+/* BeOne / 百研星 skin — override PostHog 3000 tokens so LemonUI eats brand colors. */
+html.beone {
+    --color-beone-blue: #002147;
+    --color-beone-blue-soft: #003a70;
+    --color-beone-accent: #d52b1e;
+    --color-beone-midnight: #28334a;
+    --color-beone-sky: #00677f;
+    --color-beone-cream: #f8f8f8;
+    --color-beone-gray-cloud: #d9d8d6;
+
+    /* No webfont fetch (Google Fonts is unreliable from mainland China): Poppins only if installed locally,
+       CJK system fonts before the generic family, PostHog's emoji fallbacks kept */
+    --font-sans:
+        'Emoji Flags Polyfill', 'Poppins', 'RoundHog', -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto',
+        'Helvetica Neue', helvetica, arial, 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    --font-title: var(--font-sans);
+    --font-button: var(--font-sans);
+
+    /* Tech Blue #002147 = hsl(212 100% 14%); base.scss derives --color-accent and its hover/active steps from these */
+    --color-brand-primary-hue: 212;
+    --color-brand-primary-saturation: 100%;
+    --color-brand-primary-lightness: 14%;
+
+    /* Kill PostHog orange primary chrome (LemonButton 3D frame) */
+    --primary-3000-light: #002147;
+    --primary-3000: #002147;
+    --primary-3000-hover: #003a70;
+    --primary-3000-active: #001a38;
+    --primary-highlight: rgb(0 33 71 / 10%);
+    --primary-3000-frame-bg-light: #001a38;
+    --primary-3000-button-bg-light: #002147;
+    --primary-3000-button-border-light: #001a38;
+    --primary-3000-button-border-hover-light: #003a70;
+    --primary-3000-frame-bg: #001a38;
+    --primary-3000-button-bg: #002147;
+    --primary-3000-button-border: #001a38;
+    --primary-3000-button-border-hover: #003a70;
+    --link-3000-light: #00677f;
+    --link: #00677f;
+
+    /* Scene / surfaces → 百研星 cream + white cards */
+    --color-bg-primary: var(--color-beone-cream);
+    --color-bg-3000: var(--color-beone-cream);
+    --color-bg-3000-light: var(--color-beone-cream);
+    --color-bg-surface-primary: #fff;
+    --color-bg-surface-secondary: #f3f4f6;
+    --color-bg-surface-tertiary: #eee;
+    --color-bg-fill-primary: #fff;
+    --color-bg-fill-secondary: var(--color-beone-cream);
+    --color-bg-fill-tertiary: #f0f0f0;
+    --color-bg-table: #fff;
+    --border-3000-light: #e8e8e8;
+    --border-3000: #e8e8e8;
+    --border-bold-3000-light: #d0d0d0;
+    --border-bold-3000: #d0d0d0;
+    --shadow-elevation-3000-light: 0 1px 2px rgb(0 0 0 / 4%);
+    --shadow-elevation-3000: 0 1px 2px rgb(0 0 0 / 4%);
+
+    /* Nav selected = white pill on gray rail (like 百研星侧栏) */
+    --color-bg-fill-button-panel: transparent;
+    --color-bg-fill-button-panel-hover: rgb(0 0 0 / 4%);
+    --color-bg-fill-button-panel-active: #fff;
+}
+
+/* PostHog puts the theme attribute on <body>, and base.scss re-declares the brand vars on [theme='dark'] */
+html.beone body[theme='dark'] {
+    --color-beone-blue: #70b3ff;
+    --color-beone-blue-soft: #5ca8ff;
+    --color-brand-primary-hue: 212;
+    --color-brand-primary-saturation: 100%;
+    --color-brand-primary-lightness: 68%;
+    --primary-3000-button-bg: #70b3ff;
+    --primary-3000-button-border: #5ca8ff;
+    --primary-3000-frame-bg: #003a70;
+}
+
+html.beone body {
+    font-family: var(--font-sans);
+    background-color: var(--color-beone-cream);
+}
+
+/* Primary Lemon buttons: filled navy + white label (not white+orange ring) */
+html.beone .LemonButton--primary:not(.LemonButton--status-danger) {
+    --lemon-button-bg-color: var(--color-beone-blue);
+    --lemon-button-bg-color-active: var(--color-beone-blue-soft);
+    --button-border-color: var(--color-beone-blue);
+    --lemon-button-border-color-hover: var(--color-beone-blue-soft);
+    --lemon-button-frame-bg-color: #001a38;
+    --lemon-button-color: #fff;
+}
+
+html.beone .LemonCard {
+    border-color: #ebebeb;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+html.beone .LemonCard.LemonCard--hoverEffect:hover {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+/* Soften nav rail toward 百研星 light gray */
+html.beone .PanelLayoutNavBar,
+html.beone [class*='PanelLayout'] nav {
+    background-color: #f3f4f6;
+}
+
+/* Active nav item: white rounded block (ButtonPrimitive panel active uses --active-bg-color) */
+html.beone .button-primitive--variant-panel {
+    border-radius: 10px;
+}
+
+html.beone .button-primitive--variant-panel[data-active='true'],
+html.beone .button-primitive--variant-panel.button-primitive--active {
+    box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}

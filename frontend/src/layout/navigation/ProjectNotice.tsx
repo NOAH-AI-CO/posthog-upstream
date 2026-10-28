@@ -7,6 +7,8 @@ import { cn } from 'lib/utils/css-classes'
 import { sceneLogic } from 'scenes/sceneLogic'
 import { SceneConfig } from 'scenes/sceneTypes'
 
+import { isBeOneThemeApplied } from '~/beone/applyBeOneTheme'
+
 import { noEventsBannerLogic } from './noEventsBannerLogic'
 import { projectNoticeLogic } from './projectNoticeLogic'
 
@@ -17,18 +19,19 @@ export function ProjectNotice({ className }: { className?: string }): JSX.Elemen
     const { reportNoticeShown } = useActions(projectNoticeLogic)
     const { sceneConfig } = useValues(sceneLogic)
     const hideProjectNotice = useFeatureFlag('UX_HIDE_PROJECT_NOTICE')
+    const hideForBeOne = isBeOneThemeApplied()
 
     const requiresHorizontalMargin = sceneConfig?.layout && LAYOUT_WITH_HORIZONTAL_MARGIN.includes(sceneConfig.layout)
 
     // KLUDGE: We can't really depend on `projectNotice` being set inside the logic
     // to trigger the action from inside the logic, so let's do it here.
     useEffect(() => {
-        if (projectNoticeVariant && !hideProjectNotice) {
+        if (projectNoticeVariant && !hideProjectNotice && !hideForBeOne) {
             reportNoticeShown()
         }
-    }, [projectNoticeVariant, reportNoticeShown, hideProjectNotice])
+    }, [projectNoticeVariant, reportNoticeShown, hideProjectNotice, hideForBeOne])
 
-    if (!projectNotice || hideProjectNotice) {
+    if (!projectNotice || hideProjectNotice || hideForBeOne) {
         return null
     }
 

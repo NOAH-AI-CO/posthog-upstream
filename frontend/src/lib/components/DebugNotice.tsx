@@ -10,6 +10,8 @@ import { LemonButton } from 'lib/lemon-ui/LemonButton'
 import { getRegionForHost, getStoredSession, OAUTH_REGIONS } from 'lib/oauth/oauthClient'
 import { ButtonPrimitive } from 'lib/ui/Button/ButtonPrimitives'
 
+import { isBeOneThemeApplied } from '~/beone/applyBeOneTheme'
+
 export interface DebugNoticeProps {
     isCollapsed?: boolean
 }
@@ -33,7 +35,8 @@ export function DebugNotice({ isCollapsed }: DebugNoticeProps): JSX.Element | nu
         }
     })
 
-    if (!debugInfo || noticeHidden) {
+    // BeOne skin: keep the product chrome clean (no DEBUG branch strip)
+    if (isBeOneThemeApplied() || !debugInfo || noticeHidden) {
         return null
     }
 
