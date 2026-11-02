@@ -35,7 +35,7 @@ export function BeOneTrendChart({ trend, range }: { trend: BeOneTrendPoint[]; ra
                 <h2 className="text-base font-semibold m-0">{beoneCopy.home.trendTitle}</h2>
                 <span className="text-xs text-secondary">{RANGE_LABEL[range]}</span>
             </div>
-            {trend.length === 0 ? (
+            {trend.length === 0 || (eventsMax === 0 && activesMax === 0) ? (
                 <div className="text-secondary text-sm py-8 text-center">{beoneCopy.home.empty}</div>
             ) : (
                 <svg
@@ -65,6 +65,22 @@ export function BeOneTrendChart({ trend, range }: { trend: BeOneTrendPoint[]; ra
                             activesMax
                         )}
                     />
+                    {trend.map((p, i) => {
+                        const step = trend.length > 1 ? (WIDTH - PADDING * 2) / (trend.length - 1) : 0
+                        const x = trend.length > 1 ? PADDING + i * step : WIDTH / 2
+                        const ey =
+                            HEIGHT - PADDING - (eventsMax > 0 ? (p.events / eventsMax) * (HEIGHT - PADDING * 2) : 0)
+                        const ay =
+                            HEIGHT - PADDING - (activesMax > 0 ? (p.actives / activesMax) * (HEIGHT - PADDING * 2) : 0)
+                        return (
+                            <g key={p.bucket}>
+                                {p.events > 0 ? <circle cx={x} cy={ey} r={3} fill="var(--color-beone-sky)" /> : null}
+                                {p.actives > 0 ? (
+                                    <circle cx={x} cy={ay} r={3} fill="var(--color-beone-accent)" />
+                                ) : null}
+                            </g>
+                        )
+                    })}
                 </svg>
             )}
             <div className="flex gap-4 text-xs text-secondary mt-2">

@@ -1,3 +1,5 @@
+import { dayjs } from 'lib/dayjs'
+
 import { escapeHogQLString } from '~/queries/utils'
 
 import {
@@ -9,6 +11,7 @@ import {
     buildRankingQuery,
     buildTrendQuery,
     buildUserAggQuery,
+    fillTrendBuckets,
     parseDurationHistRows,
     parseKpiRows,
     parseRankingRows,
@@ -109,5 +112,17 @@ describe('beOneUsageQueries', () => {
             { bucket: '5-30m', count: 0 },
             { bucket: '>=30m', count: 0 },
         ])
+    })
+
+    // Sparse single-day rows used to leave a 1-point polyline that renders blank
+    it('pads sparse trend points across the selected range', () => {
+        const filled = fillTrendBuckets(
+            [{ bucket: '2026-10-27T00:00:00Z', events: 43, actives: 1 }],
+            '7d',
+            dayjs('2026-10-29T15:00:00Z')
+        )
+        expect(filled).toHaveLength(7)
+        expect(filled.map((p) => p.events)).toEqual([0, 0, 0, 0, 43, 0, 0])
+        expect(filled.map((p) => p.actives)).toEqual([0, 0, 0, 0, 1, 0, 0])
     })
 })

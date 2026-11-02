@@ -1,3 +1,5 @@
+import { dayjs } from 'lib/dayjs'
+
 import { labelForModule } from '~/beone/modules'
 import { escapeHogQLString, hogql } from '~/queries/utils'
 import type { HogQLQueryString } from '~/queries/utils'
@@ -216,6 +218,36 @@ export function parseTrendRows(results: HogQLRows): BeOneTrendPoint[] {
         events: Number(r[1] ?? 0),
         actives: Number(r[2] ?? 0),
     }))
+}
+
+const RANGE_STEPS: Record<BeOneRange, number> = { '24h': 24, '7d': 7, '30d': 30 }
+
+function trendBucketKey(ts: string, unit: 'hour' | 'day'): string {
+    const d = dayjs(ts)
+    return unit === 'hour' ? d.format('YYYY-MM-DD HH:00:00') : d.format('YYYY-MM-DD')
+}
+
+/** Pad sparse GROUP BY results so a single busy day still draws across the full range. */
+export function fillTrendBuckets(
+    points: BeOneTrendPoint[],
+    range: BeOneRange,
+    now: dayjs.Dayjs = dayjs()
+): BeOneTrendPoint[] {
+    const unit = trendGranularityForRange(range)
+    const steps = RANGE_STEPS[range]
+    const byKey = new Map<string, BeOneTrendPoint>()
+    for (const p of points) {
+        byKey.set(trendBucketKey(p.bucket, unit), p)
+    }
+    const end = now.startOf(unit)
+    const filled: BeOneTrendPoint[] = []
+    for (let i = steps - 1; i >= 0; i--) {
+        const bucket = end.subtract(i, unit)
+        const key = trendBucketKey(bucket.toISOString(), unit)
+        const existing = byKey.get(key)
+        filled.push(existing ?? { bucket: bucket.toISOString(), events: 0, actives: 0 })
+    }
+    return filled
 }
 
 export function parseRankingRows(results: HogQLRows): BeOneRankingRow[] {

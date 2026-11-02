@@ -11,6 +11,7 @@ import {
     buildRankingQuery,
     buildTrendQuery,
     buildUserAggQuery,
+    fillTrendBuckets,
     parseDurationHistRows,
     parseFeedRows,
     parseKpiRows,
@@ -294,7 +295,7 @@ export const beOneUsageLogic = kea<beOneUsageLogicType>([
                 loadTrend: () =>
                     keepPreviousOnError(values.trend, async () => {
                         const res = await api.queryHogQL(buildTrendQuery(values.filters), QUERY_TAGS, QUERY_OPTIONS)
-                        return parseTrendRows(res.results)
+                        return fillTrendBuckets(parseTrendRows(res.results), values.filters.range)
                     }),
             },
         ],
