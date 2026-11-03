@@ -4,31 +4,66 @@ import { labelForModule } from '~/beone/modules'
 import { escapeHogQLString, hogql } from '~/queries/utils'
 import type { HogQLQueryString } from '~/queries/utils'
 
-export type BeOneRange = '24h' | '7d' | '30d'
+export type BeOneTitleKind = '' | 'teaching_title' | 'clinical_title'
 
 export type BeOneUsageFilters = {
-    range: BeOneRange
+    dateFrom: string
+    dateTo: string | null
     module: string
-    distinctId: string
     userType: string
     accountKind: string
-    enterpriseId: string
-    businessGroupId: string
-    accessRole: string
-    profileComplete: '' | 'true' | 'false'
+    province: string
+    city: string
+    hospitalLevel: string
+    titleKind: BeOneTitleKind
+    titleValue: string
+    hospitalName: string
 }
 
 export const DEFAULT_BEONE_FILTERS: BeOneUsageFilters = {
-    range: '7d',
+    dateFrom: '-90d',
+    dateTo: null,
     module: '',
-    distinctId: '',
     userType: '',
     accountKind: '',
-    enterpriseId: '',
-    businessGroupId: '',
-    accessRole: '',
-    profileComplete: '',
+    province: '',
+    city: '',
+    hospitalLevel: '',
+    titleKind: '',
+    titleValue: '',
+    hospitalName: '',
 }
+
+export type BeOneDrilldown = { dimension: string; value: string; label: string } | null
+
+export type BeOneWidgetId =
+    | 'trend'
+    | 'users'
+    | 'ranking'
+    | 'feed'
+    | 'duration'
+    | 'hourly'
+    | 'breakdown_user_type'
+    | 'breakdown_account_kind'
+    | 'breakdown_province'
+    | 'breakdown_hospital_level'
+    | 'breakdown_title'
+
+export const DEFAULT_HIDDEN_WIDGETS: BeOneWidgetId[] = ['duration']
+
+export const ALL_WIDGET_IDS: BeOneWidgetId[] = [
+    'trend',
+    'users',
+    'ranking',
+    'feed',
+    'hourly',
+    'breakdown_user_type',
+    'breakdown_account_kind',
+    'breakdown_province',
+    'breakdown_hospital_level',
+    'breakdown_title',
+    'duration',
+]
 
 export type BeOneKpis = {
     todayActive: number
@@ -53,30 +88,81 @@ export type BeOneUserRow = {
     lastSeen: string
 }
 export type BeOneDurationBucket = { bucket: string; count: number }
+export type BeOneHourlyBucket = { hour: number; count: number }
+export type BeOneBreakdownRow = { value: string; label: string; people: number; events: number }
+
+export type BeOneTrendGranularity = 'hour' | 'day' | 'week' | 'month'
 
 type HogQLRows = any[][] | undefined
 
 const BEONE_EVENTS = hogql.raw(`event IN ('user_activity', 'module_entered')`)
 const TASK_END_EVENTS = hogql.raw(`event IN ('task_succeeded', 'task_failed', 'task_cancelled', 'task_interrupted')`)
 
-const RANGE_INTERVAL: Record<BeOneRange, string> = {
-    '24h': '24 HOUR',
-    '7d': '7 DAY',
-    '30d': '30 DAY',
+export function mergeFiltersWithDrilldown(filters: BeOneUsageFilters, drilldown: BeOneDrilldown): BeOneUsageFilters {
+    if (!drilldown) {
+        return filters
+    }
+    const next = { ...filters }
+    switch (drilldown.dimension) {
+        case 'user_type':
+            next.userType = drilldown.value
+            break
+        case 'account_kind':
+            next.accountKind = drilldown.value
+            break
+        case 'province':
+            next.province = drilldown.value
+            break
+        case 'hospital_level':
+            next.hospitalLevel = drilldown.value
+            break
+        case 'teaching_title':
+            next.titleKind = 'teaching_title'
+            next.titleValue = drilldown.value
+            break
+        case 'clinical_title':
+            next.titleKind = 'clinical_title'
+            next.titleValue = drilldown.value
+            break
+        case 'module':
+            next.module = drilldown.value
+            break
+        default:
+            break
+    }
+    return next
 }
 
-export function trendGranularityForRange(range: BeOneRange): 'hour' | 'day' {
-    return range === '24h' ? 'hour' : 'day'
+function relativeIntervalClause(dateFrom: string): string | null {
+    const m = /^-(?<n>\d+)(?<u>[hdwm])$/i.exec(dateFrom.trim())
+    if (!m?.groups) {
+        return null
+    }
+    const n = Number(m.groups.n)
+    const unitMap: Record<string, string> = { h: 'HOUR', d: 'DAY', w: 'WEEK', m: 'MONTH' }
+    const unit = unitMap[m.groups.u.toLowerCase()]
+    if (!unit || !Number.isFinite(n)) {
+        return null
+    }
+    return `timestamp >= now() - INTERVAL ${n} ${unit}`
 }
 
 /** Build AND-clauses for optional filters. Empty string = no constraint. */
 export function buildFilterClauses(filters: BeOneUsageFilters): string[] {
-    const clauses: string[] = [`timestamp >= now() - INTERVAL ${RANGE_INTERVAL[filters.range]}`]
+    const clauses: string[] = []
+    const relative = relativeIntervalClause(filters.dateFrom)
+    if (relative) {
+        clauses.push(relative)
+    } else if (filters.dateFrom) {
+        clauses.push(`timestamp >= toDateTime(${escapeHogQLString(filters.dateFrom)})`)
+    } else {
+        clauses.push(`timestamp >= now() - INTERVAL 90 DAY`)
+    }
+    if (filters.dateTo) {
+        clauses.push(`timestamp <= toDateTime(${escapeHogQLString(filters.dateTo)})`)
+    }
     if (filters.module) {
         clauses.push(`toString(properties.module) = ${escapeHogQLString(filters.module)}`)
-    }
-    if (filters.distinctId.trim()) {
-        clauses.push(`positionCaseInsensitive(distinct_id, ${escapeHogQLString(filters.distinctId.trim())}) > 0`)
     }
     if (filters.userType) {
         clauses.push(`toString(properties.user_type) = ${escapeHogQLString(filters.userType)}`)
@@ -84,23 +170,82 @@ export function buildFilterClauses(filters: BeOneUsageFilters): string[] {
     if (filters.accountKind) {
         clauses.push(`toString(properties.account_kind) = ${escapeHogQLString(filters.accountKind)}`)
     }
-    if (filters.enterpriseId.trim()) {
-        clauses.push(`toString(properties.enterprise_id) = ${escapeHogQLString(filters.enterpriseId.trim())}`)
+    if (filters.province) {
+        clauses.push(`toString(properties.province) = ${escapeHogQLString(filters.province)}`)
     }
-    if (filters.businessGroupId.trim()) {
-        clauses.push(`toString(properties.business_group_id) = ${escapeHogQLString(filters.businessGroupId.trim())}`)
+    if (filters.city) {
+        clauses.push(`toString(properties.city) = ${escapeHogQLString(filters.city)}`)
     }
-    if (filters.accessRole) {
-        clauses.push(`toString(properties.access_role) = ${escapeHogQLString(filters.accessRole)}`)
+    if (filters.hospitalLevel) {
+        clauses.push(`toString(properties.hospital_level) = ${escapeHogQLString(filters.hospitalLevel)}`)
     }
-    if (filters.profileComplete === 'true' || filters.profileComplete === 'false') {
-        clauses.push(`toBool(properties.profile_complete) = ${filters.profileComplete}`)
+    if (filters.titleKind && filters.titleValue) {
+        clauses.push(`toString(properties.${filters.titleKind}) = ${escapeHogQLString(filters.titleValue)}`)
+    }
+    if (filters.hospitalName.trim()) {
+        clauses.push(
+            `positionCaseInsensitive(toString(properties.hospital), ${escapeHogQLString(filters.hospitalName.trim())}) > 0`
+        )
     }
     return clauses
 }
 
 function whereAnd(base: { raw: string }, filters: BeOneUsageFilters): ReturnType<typeof hogql.raw> {
     return hogql.raw([base.raw, ...buildFilterClauses(filters)].map((p) => `(${p})`).join(' AND '))
+}
+
+export function trendGranularityForFilters(filters: BeOneUsageFilters): BeOneTrendGranularity {
+    const relative = relativeIntervalClause(filters.dateFrom)
+    if (relative?.includes('HOUR')) {
+        return 'hour'
+    }
+    const days = estimateRangeDays(filters)
+    if (days <= 2) {
+        return 'hour'
+    }
+    if (days <= 60) {
+        return 'day'
+    }
+    if (days <= 180) {
+        return 'week'
+    }
+    return 'month'
+}
+
+export function estimateRangeDays(filters: BeOneUsageFilters, now: dayjs.Dayjs = dayjs()): number {
+    const m = /^-(?<n>\d+)(?<u>[hdwm])$/i.exec(filters.dateFrom.trim())
+    if (m?.groups) {
+        const n = Number(m.groups.n)
+        switch (m.groups.u.toLowerCase()) {
+            case 'h':
+                return Math.max(1, n / 24)
+            case 'd':
+                return n
+            case 'w':
+                return n * 7
+            case 'm':
+                return n * 30
+        }
+    }
+    const from = dayjs(filters.dateFrom)
+    const to = filters.dateTo ? dayjs(filters.dateTo) : now
+    if (from.isValid() && to.isValid()) {
+        return Math.max(1, to.diff(from, 'day'))
+    }
+    return 90
+}
+
+function truncFn(granularity: BeOneTrendGranularity): string {
+    switch (granularity) {
+        case 'hour':
+            return 'toStartOfHour'
+        case 'week':
+            return 'toStartOfWeek'
+        case 'month':
+            return 'toStartOfMonth'
+        default:
+            return 'toStartOfDay'
+    }
 }
 
 export function buildKpiQuery(filters: BeOneUsageFilters): HogQLQueryString {
@@ -118,7 +263,7 @@ export function buildKpiQuery(filters: BeOneUsageFilters): HogQLQueryString {
 
 export function buildTrendQuery(filters: BeOneUsageFilters): HogQLQueryString {
     const where = whereAnd(BEONE_EVENTS, filters)
-    const trunc = trendGranularityForRange(filters.range) === 'hour' ? 'toStartOfHour' : 'toStartOfDay'
+    const trunc = truncFn(trendGranularityForFilters(filters))
     return hogql`
         SELECT
             ${hogql.raw(trunc)}(timestamp) AS bucket,
@@ -202,6 +347,64 @@ export function buildDurationHistQuery(filters: BeOneUsageFilters): HogQLQuerySt
     `
 }
 
+export function buildHourlyQuery(filters: BeOneUsageFilters): HogQLQueryString {
+    const where = whereAnd(BEONE_EVENTS, filters)
+    return hogql`
+        SELECT
+            toHour(timestamp) AS hour,
+            count() AS c
+        FROM events
+        WHERE ${where}
+        GROUP BY hour
+        ORDER BY hour
+    `
+}
+
+export function buildBreakdownQuery(
+    filters: BeOneUsageFilters,
+    property: string,
+    labelProperty?: string
+): HogQLQueryString {
+    const where = whereAnd(BEONE_EVENTS, filters)
+    const labelExpr = labelProperty
+        ? `if(toString(properties.${labelProperty}) = '', toString(properties.${property}), toString(properties.${labelProperty}))`
+        : `toString(properties.${property})`
+    return hogql`
+        SELECT
+            toString(properties.${hogql.identifier(property)}) AS value,
+            ${hogql.raw(labelExpr)} AS label,
+            uniqExact(distinct_id) AS people,
+            count() AS events
+        FROM events
+        WHERE ${where}
+        GROUP BY value, label
+        ORDER BY people DESC
+        LIMIT 20
+    `
+}
+
+export function buildDistinctPropQuery(
+    filters: BeOneUsageFilters,
+    property: string,
+    labelProperty?: string
+): HogQLQueryString {
+    const where = whereAnd(BEONE_EVENTS, filters)
+    const labelExpr = labelProperty
+        ? `if(toString(properties.${labelProperty}) = '', toString(properties.${property}), toString(properties.${labelProperty}))`
+        : `toString(properties.${property})`
+    return hogql`
+        SELECT
+            toString(properties.${hogql.identifier(property)}) AS value,
+            ${hogql.raw(labelExpr)} AS label
+        FROM events
+        WHERE ${where}
+          AND toString(properties.${hogql.identifier(property)}) != ''
+        GROUP BY value, label
+        ORDER BY label
+        LIMIT 200
+    `
+}
+
 export function parseKpiRows(results: HogQLRows): BeOneKpis {
     const row = results?.[0] ?? [0, 0, 0, 0]
     return {
@@ -220,35 +423,59 @@ export function parseTrendRows(results: HogQLRows): BeOneTrendPoint[] {
     }))
 }
 
-const RANGE_STEPS: Record<BeOneRange, number> = { '24h': 24, '7d': 7, '30d': 30 }
-
-function trendBucketKey(ts: string, unit: 'hour' | 'day'): string {
+function trendBucketKey(ts: string, granularity: BeOneTrendGranularity): string {
     const d = dayjs(ts)
-    return unit === 'hour' ? d.format('YYYY-MM-DD HH:00:00') : d.format('YYYY-MM-DD')
+    switch (granularity) {
+        case 'hour':
+            return d.format('YYYY-MM-DD HH:00:00')
+        case 'week':
+            return d.startOf('week').format('YYYY-MM-DD')
+        case 'month':
+            return d.format('YYYY-MM')
+        default:
+            return d.format('YYYY-MM-DD')
+    }
 }
 
 /**
  * Pad sparse GROUP BY results across the filter window.
- * `timestamp >= now() - INTERVAL N` can span N+1 calendar buckets (partial first day),
- * so we include one extra step or the filled series drops the oldest day and looks empty.
+ * Rolling INTERVAL N can span N+1 calendar buckets (partial first day).
  */
 export function fillTrendBuckets(
     points: BeOneTrendPoint[],
-    range: BeOneRange,
+    filters: BeOneUsageFilters,
     now: dayjs.Dayjs = dayjs()
 ): BeOneTrendPoint[] {
-    const unit = trendGranularityForRange(range)
-    const steps = RANGE_STEPS[range]
+    const granularity = trendGranularityForFilters(filters)
+    const days = estimateRangeDays(filters, now)
+    let steps: number
+    let unit: dayjs.ManipulateType
+    switch (granularity) {
+        case 'hour':
+            steps = Math.max(24, Math.ceil(days * 24))
+            unit = 'hour'
+            break
+        case 'week':
+            steps = Math.max(1, Math.ceil(days / 7))
+            unit = 'week'
+            break
+        case 'month':
+            steps = Math.max(1, Math.ceil(days / 30))
+            unit = 'month'
+            break
+        default:
+            steps = Math.max(1, Math.ceil(days))
+            unit = 'day'
+    }
     const byKey = new Map<string, BeOneTrendPoint>()
     for (const p of points) {
-        byKey.set(trendBucketKey(p.bucket, unit), p)
+        byKey.set(trendBucketKey(p.bucket, granularity), p)
     }
-    const end = now.startOf(unit)
-    // Inclusive: [now - N units, now] → N+1 buckets (matches HogQL INTERVAL window)
+    const end = now.startOf(unit === 'week' ? 'week' : unit === 'month' ? 'month' : unit)
     const filled: BeOneTrendPoint[] = []
     for (let i = steps; i >= 0; i--) {
         const bucket = end.subtract(i, unit)
-        const key = trendBucketKey(bucket.toISOString(), unit)
+        const key = trendBucketKey(bucket.toISOString(), granularity)
         const existing = byKey.get(key)
         filled.push(existing ?? { bucket: bucket.toISOString(), events: 0, actives: 0 })
     }
@@ -292,4 +519,27 @@ export function parseDurationHistRows(results: HogQLRows): BeOneDurationBucket[]
         counts.set(String(r[0]), Number(r[1] ?? 0))
     }
     return DURATION_ORDER.map((bucket) => ({ bucket, count: counts.get(bucket) ?? 0 }))
+}
+
+export function parseHourlyRows(results: HogQLRows): BeOneHourlyBucket[] {
+    const counts = new Map<number, number>()
+    for (const r of results ?? []) {
+        counts.set(Number(r[0]), Number(r[1] ?? 0))
+    }
+    return Array.from({ length: 24 }, (_, hour) => ({ hour, count: counts.get(hour) ?? 0 }))
+}
+
+export function parseBreakdownRows(results: HogQLRows): BeOneBreakdownRow[] {
+    return (results ?? []).map((r) => ({
+        value: String(r[0] ?? ''),
+        label: String(r[1] ?? r[0] ?? ''),
+        people: Number(r[2] ?? 0),
+        events: Number(r[3] ?? 0),
+    }))
+}
+
+export function parseDistinctPropRows(results: HogQLRows): { value: string; label: string }[] {
+    return (results ?? [])
+        .map((r) => ({ value: String(r[0] ?? ''), label: String(r[1] ?? r[0] ?? '') }))
+        .filter((r) => r.value)
 }

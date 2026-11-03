@@ -1,6 +1,6 @@
-import { LemonCard } from '@posthog/lemon-ui'
+import { LemonButton, LemonCard } from '@posthog/lemon-ui'
 
-import { beoneCopy } from '~/beone/copy.zh'
+import type { BeOneCopy } from '~/beone/copy'
 
 import type { BeOneDurationBucket } from '../beOneUsageQueries'
 
@@ -11,25 +11,36 @@ const BAR_GAP = 8
 
 export function BeOneDurationChart({
     buckets,
+    copy,
     loading,
+    onClose,
 }: {
     buckets: BeOneDurationBucket[]
+    copy: BeOneCopy
     loading?: boolean
+    onClose?: () => void
 }): JSX.Element {
     const max = Math.max(0, ...buckets.map((b) => b.count))
     const barWidth = buckets.length > 0 ? (WIDTH - PADDING * 2 - BAR_GAP * (buckets.length - 1)) / buckets.length : 0
     return (
         <LemonCard hoverEffect={false} className="p-4" data-attr="beone-duration-chart">
-            <h2 className="text-base font-semibold mb-2">{beoneCopy.home.durationTitle}</h2>
+            <div className="flex items-center justify-between mb-2">
+                <h2 className="text-base font-semibold m-0">{copy.home.durationTitle}</h2>
+                {onClose ? (
+                    <LemonButton size="xsmall" type="tertiary" onClick={onClose}>
+                        {copy.home.closeWidget}
+                    </LemonButton>
+                ) : null}
+            </div>
             {loading || buckets.every((b) => b.count === 0) ? (
-                <div className="text-secondary text-sm py-8 text-center">{loading ? '…' : beoneCopy.home.empty}</div>
+                <div className="text-secondary text-sm py-8 text-center">{loading ? '…' : copy.home.empty}</div>
             ) : (
                 <svg
                     viewBox={`0 0 ${WIDTH} ${HEIGHT + 24}`}
                     className="w-full h-48"
                     preserveAspectRatio="none"
                     role="img"
-                    aria-label={beoneCopy.home.durationTitle}
+                    aria-label={copy.home.durationTitle}
                 >
                     {buckets.map((b, i) => {
                         const h = max > 0 ? (b.count / max) * (HEIGHT - PADDING * 2) : 0

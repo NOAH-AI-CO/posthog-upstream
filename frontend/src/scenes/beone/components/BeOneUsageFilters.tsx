@@ -1,60 +1,73 @@
 import { LemonButton, LemonCard, LemonInput, LemonSelect } from '@posthog/lemon-ui'
 
-import { beoneCopy } from '~/beone/copy.zh'
+import { DateFilter } from 'lib/components/DateFilter/DateFilter'
+
+import type { BeOneCopy } from '~/beone/copy'
 import { moduleFilterOptions } from '~/beone/modules'
+import { DateMappingOption } from '~/types'
 
 import type { BeOneUsageFilters } from '../beOneUsageQueries'
 
-const ALL = { value: '', label: beoneCopy.home.filterAll }
-
 export function BeOneUsageFilters({
     draft,
+    copy,
     onChange,
     onApply,
     onReset,
+    onSaveDefault,
+    saving,
+    provinceOptions,
+    cityOptions,
+    hospitalLevelOptions,
+    titleOptions,
 }: {
     draft: BeOneUsageFilters
+    copy: BeOneCopy
     onChange: (partial: Partial<BeOneUsageFilters>) => void
     onApply: () => void
     onReset: () => void
+    onSaveDefault: () => void
+    saving?: boolean
+    provinceOptions: { value: string; label: string }[]
+    cityOptions: { value: string; label: string }[]
+    hospitalLevelOptions: { value: string; label: string }[]
+    titleOptions: { value: string; label: string }[]
 }): JSX.Element {
+    const ALL = { value: '', label: copy.home.filterAll }
+    const dateOptions: DateMappingOption[] = [
+        { key: copy.home.dateLastWeek, values: ['-7d'], defaultInterval: 'day' },
+        { key: copy.home.dateLastMonth, values: ['-30d'], defaultInterval: 'day' },
+        { key: copy.home.dateLast3Months, values: ['-90d'], defaultInterval: 'day' },
+        { key: copy.home.dateLastHalfYear, values: ['-180d'], defaultInterval: 'month' },
+    ]
+
     return (
         <LemonCard hoverEffect={false} className="p-4" data-attr="beone-usage-filters">
-            <h2 className="text-base font-semibold mb-3">{beoneCopy.home.filterTitle}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterRange}
-                    <LemonSelect
-                        value={draft.range}
-                        onChange={(range) => range && onChange({ range })}
-                        options={[
-                            { value: '24h', label: beoneCopy.home.trend24h },
-                            { value: '7d', label: beoneCopy.home.trend7d },
-                            { value: '30d', label: beoneCopy.home.trend30d },
-                        ]}
-                        fullWidth
+            <h2 className="text-base font-semibold mb-3">{copy.home.filterTitle}</h2>
+            <div className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-40">
+                    {copy.home.filterRange}
+                    <DateFilter
+                        dateFrom={draft.dateFrom}
+                        dateTo={draft.dateTo}
+                        onChange={(dateFrom, dateTo) =>
+                            onChange({ dateFrom: dateFrom ?? '-90d', dateTo: dateTo ?? null })
+                        }
+                        dateOptions={dateOptions}
+                        size="small"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterModule}
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-36">
+                    {copy.home.filterModule}
                     <LemonSelect
                         value={draft.module}
                         onChange={(module) => onChange({ module: module ?? '' })}
                         options={[ALL, ...moduleFilterOptions()]}
-                        fullWidth
+                        size="small"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterDistinctId}
-                    <LemonInput
-                        value={draft.distinctId}
-                        onChange={(distinctId) => onChange({ distinctId })}
-                        placeholder="beone:…"
-                        allowClear
-                    />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterUserType}
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterUserType}
                     <LemonSelect
                         value={draft.userType}
                         onChange={(userType) => onChange({ userType: userType ?? '' })}
@@ -64,11 +77,11 @@ export function BeOneUsageFilters({
                             { value: 'employee', label: 'employee' },
                             { value: 'unknown', label: 'unknown' },
                         ]}
-                        fullWidth
+                        size="small"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterAccountKind}
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterAccountKind}
                     <LemonSelect
                         value={draft.accountKind}
                         onChange={(accountKind) => onChange({ accountKind: accountKind ?? '' })}
@@ -80,65 +93,85 @@ export function BeOneUsageFilters({
                             { value: 'service', label: 'service' },
                             { value: 'unknown', label: 'unknown' },
                         ]}
-                        fullWidth
+                        size="small"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterEnterpriseId}
-                    <LemonInput
-                        value={draft.enterpriseId}
-                        onChange={(enterpriseId) => onChange({ enterpriseId })}
-                        allowClear
-                    />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterBusinessGroupId}
-                    <LemonInput
-                        value={draft.businessGroupId}
-                        onChange={(businessGroupId) => onChange({ businessGroupId })}
-                        allowClear
-                    />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterAccessRole}
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterProvince}
                     <LemonSelect
-                        value={draft.accessRole}
-                        onChange={(accessRole) => onChange({ accessRole: accessRole ?? '' })}
-                        options={[
-                            ALL,
-                            { value: 'platform_admin', label: 'platform_admin' },
-                            { value: 'company_admin', label: 'company_admin' },
-                            { value: 'group_admin', label: 'group_admin' },
-                            { value: 'member', label: 'member' },
-                            { value: 'unassigned', label: 'unassigned' },
-                        ]}
-                        fullWidth
+                        value={draft.province}
+                        onChange={(province) => onChange({ province: province ?? '', city: '' })}
+                        options={[ALL, ...provinceOptions]}
+                        size="small"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary">
-                    {beoneCopy.home.filterProfileComplete}
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterCity}
                     <LemonSelect
-                        value={draft.profileComplete}
-                        onChange={(profileComplete) =>
+                        value={draft.city}
+                        onChange={(city) => onChange({ city: city ?? '' })}
+                        options={[ALL, ...cityOptions]}
+                        size="small"
+                        disabledReason={!draft.province ? copy.home.filterProvince : undefined}
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterHospitalLevel}
+                    <LemonSelect
+                        value={draft.hospitalLevel}
+                        onChange={(hospitalLevel) => onChange({ hospitalLevel: hospitalLevel ?? '' })}
+                        options={[ALL, ...hospitalLevelOptions]}
+                        size="small"
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterTitleKind}
+                    <LemonSelect
+                        value={draft.titleKind}
+                        onChange={(titleKind) =>
                             onChange({
-                                profileComplete: (profileComplete ?? '') as BeOneUsageFilters['profileComplete'],
+                                titleKind: (titleKind ?? '') as BeOneUsageFilters['titleKind'],
+                                titleValue: '',
                             })
                         }
                         options={[
                             ALL,
-                            { value: 'true', label: beoneCopy.home.profileCompleteYes },
-                            { value: 'false', label: beoneCopy.home.profileCompleteNo },
+                            { value: 'teaching_title', label: copy.home.filterTitleTeaching },
+                            { value: 'clinical_title', label: copy.home.filterTitleClinical },
                         ]}
-                        fullWidth
+                        size="small"
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterTitleValue}
+                    <LemonSelect
+                        value={draft.titleValue}
+                        onChange={(titleValue) => onChange({ titleValue: titleValue ?? '' })}
+                        options={[ALL, ...titleOptions]}
+                        size="small"
+                        disabledReason={!draft.titleKind ? copy.home.filterTitleKind : undefined}
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-40">
+                    {copy.home.filterHospitalName}
+                    <LemonInput
+                        value={draft.hospitalName}
+                        onChange={(hospitalName) => onChange({ hospitalName })}
+                        placeholder={copy.home.hospitalNamePlaceholder}
+                        size="small"
+                        allowClear
                     />
                 </label>
             </div>
             <div className="flex gap-2 mt-3">
-                <LemonButton type="primary" onClick={onApply}>
-                    {beoneCopy.home.filterApply}
+                <LemonButton type="primary" size="small" onClick={onApply}>
+                    {copy.home.filterApply}
                 </LemonButton>
-                <LemonButton type="secondary" onClick={onReset}>
-                    {beoneCopy.home.filterReset}
+                <LemonButton type="secondary" size="small" onClick={onReset}>
+                    {copy.home.filterReset}
+                </LemonButton>
+                <LemonButton type="secondary" size="small" onClick={onSaveDefault} loading={saving}>
+                    {copy.home.filterSaveDefault}
                 </LemonButton>
             </div>
         </LemonCard>
