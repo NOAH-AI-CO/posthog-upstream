@@ -227,7 +227,11 @@ function trendBucketKey(ts: string, unit: 'hour' | 'day'): string {
     return unit === 'hour' ? d.format('YYYY-MM-DD HH:00:00') : d.format('YYYY-MM-DD')
 }
 
-/** Pad sparse GROUP BY results so a single busy day still draws across the full range. */
+/**
+ * Pad sparse GROUP BY results across the filter window.
+ * `timestamp >= now() - INTERVAL N` can span N+1 calendar buckets (partial first day),
+ * so we include one extra step or the filled series drops the oldest day and looks empty.
+ */
 export function fillTrendBuckets(
     points: BeOneTrendPoint[],
     range: BeOneRange,
@@ -240,8 +244,9 @@ export function fillTrendBuckets(
         byKey.set(trendBucketKey(p.bucket, unit), p)
     }
     const end = now.startOf(unit)
+    // Inclusive: [now - N units, now] → N+1 buckets (matches HogQL INTERVAL window)
     const filled: BeOneTrendPoint[] = []
-    for (let i = steps - 1; i >= 0; i--) {
+    for (let i = steps; i >= 0; i--) {
         const bucket = end.subtract(i, unit)
         const key = trendBucketKey(bucket.toISOString(), unit)
         const existing = byKey.get(key)

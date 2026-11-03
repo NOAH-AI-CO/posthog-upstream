@@ -121,8 +121,22 @@ describe('beOneUsageQueries', () => {
             '7d',
             dayjs('2026-10-29T15:00:00Z')
         )
-        expect(filled).toHaveLength(7)
-        expect(filled.map((p) => p.events)).toEqual([0, 0, 0, 0, 43, 0, 0])
-        expect(filled.map((p) => p.actives)).toEqual([0, 0, 0, 0, 1, 0, 0])
+        // INTERVAL 7 DAY spans 8 calendar days inclusive of the partial first day
+        expect(filled).toHaveLength(8)
+        expect(filled.map((p) => p.events)).toEqual([0, 0, 0, 0, 0, 43, 0, 0])
+        expect(filled.map((p) => p.actives)).toEqual([0, 0, 0, 0, 0, 1, 0, 0])
+    })
+
+    it('keeps the oldest day inside a rolling INTERVAL window', () => {
+        // Regression: on Nov 3, Oct 27 events are still inside now()-7 DAY but were
+        // dropped when fill only covered the last 7 midnights (Oct 28–Nov 3).
+        const filled = fillTrendBuckets(
+            [{ bucket: '2026-10-27T00:00:00', events: 43, actives: 1 }],
+            '7d',
+            dayjs('2026-11-03T10:28:00')
+        )
+        expect(filled).toHaveLength(8)
+        expect(filled[0]?.events).toBe(43)
+        expect(filled.reduce((sum, p) => sum + p.events, 0)).toBe(43)
     })
 })
