@@ -31,6 +31,7 @@ from posthog.api import (
     uploaded_media,
     user,
 )
+from posthog.api.beone_registration import BeOneRegistrationHospitalsView, BeOneRegistrationOptionsView
 from posthog.api.github_callback.views import github_oauth_callback, github_setup_callback
 from posthog.api.oauth.connected_apps import ConnectedAppsViewSet
 from posthog.api.oauth.raycast_metadata import RAYCAST_METADATA_PATH, RaycastClientMetadataView
@@ -509,6 +510,8 @@ urlpatterns = [
         name="user_interviews_start_call",
     ),
     path("api/sdk_health/", sdk_health),
+    path("api/beone/registration/options/", BeOneRegistrationOptionsView.as_view()),
+    path("api/beone/registration/hospitals/", BeOneRegistrationHospitalsView.as_view()),
     path("api/conversations/", include("products.conversations.backend.api.urls")),
     path("api/customer_analytics/", include("products.customer_analytics.backend.presentation.views.urls")),
     # nosemgrep: no-environments-url-path -- legacy dual-route env alias, pending env-prefix retirement

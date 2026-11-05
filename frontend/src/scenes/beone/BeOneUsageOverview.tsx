@@ -83,6 +83,8 @@ export function BeOneUsageOverview(): JSX.Element {
         cityOptions,
         hospitalLevelOptions,
         titleOptions,
+        hospitalOptions,
+        hospitalSuggestionsLoading,
         queryFilters,
     } = useValues(beOneUsageLogic)
     const {
@@ -95,6 +97,7 @@ export function BeOneUsageOverview(): JSX.Element {
         clearDrilldown,
         hideWidget,
         showWidget,
+        setHospitalSearch,
     } = useActions(beOneUsageLogic)
 
     const show = (id: BeOneWidgetId): boolean => !hiddenWidgets.includes(id)
@@ -150,6 +153,9 @@ export function BeOneUsageOverview(): JSX.Element {
                 cityOptions={cityOptions}
                 hospitalLevelOptions={hospitalLevelOptions}
                 titleOptions={titleOptions}
+                hospitalOptions={hospitalOptions}
+                hospitalSearchLoading={hospitalSuggestionsLoading}
+                onHospitalSearch={setHospitalSearch}
             />
 
             {drilldown ? (

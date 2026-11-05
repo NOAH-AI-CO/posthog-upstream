@@ -4,13 +4,23 @@ import { loaders } from 'kea-loaders'
 import api from 'lib/api'
 
 import { getBeOneCopy, type BeOneLocale } from '~/beone/copy'
+import {
+    cityOptionsFromRegions,
+    fetchHospitalSuggestions,
+    fetchRegistrationOptions,
+    hospitalSelectOptions,
+    optionsOfKind,
+    provinceOptionsFromRegions,
+    type BeOneHospitalsResponse,
+    type BeOneRegistrationOptionsResponse,
+    type BeOneSelectOption,
+} from '~/beone/registrationApi'
 
 import {
     ALL_WIDGET_IDS,
     DEFAULT_BEONE_FILTERS,
     DEFAULT_HIDDEN_WIDGETS,
     buildBreakdownQuery,
-    buildDistinctPropQuery,
     buildDurationHistQuery,
     buildFeedQuery,
     buildHourlyQuery,
@@ -21,7 +31,6 @@ import {
     fillTrendBuckets,
     mergeFiltersWithDrilldown,
     parseBreakdownRows,
-    parseDistinctPropRows,
     parseDurationHistRows,
     parseFeedRows,
     parseHourlyRows,
@@ -48,6 +57,7 @@ import type {
 
 const OVERVIEW_POLL_INTERVAL_MS = 60_000
 const FEED_POLL_INTERVAL_MS = 15_000
+const HOSPITAL_SEARCH_DEBOUNCE_MS = 250
 
 const QUERY_TAGS = { scene: 'ProjectHomepage', productKey: 'product_analytics' } as const
 const QUERY_OPTIONS = { refresh: 'force_blocking' } as const
@@ -89,6 +99,9 @@ export const beOneUsageLogic = kea([
         loadHomeSettings: true,
         loadHomeSettingsSuccess: (settings: BeOneHomeSettings) => ({ settings }),
         setSavingDefault: (saving: boolean) => ({ saving }),
+        setHospitalSearch: (query: string) => ({ query }),
+        searchHospitals: true,
+        clearHospitalSuggestions: true,
     }),
     reducers({
         draftFilters: [
@@ -150,6 +163,23 @@ export const beOneUsageLogic = kea([
             false,
             {
                 loadHomeSettingsSuccess: () => true,
+            },
+        ],
+        hospitalSearch: [
+            '',
+            {
+                setHospitalSearch: (_, { query }) => query,
+                setDraftFilters: (state, { draftFilters }) => {
+                    if ('province' in draftFilters || 'city' in draftFilters) {
+                        return ''
+                    }
+                    if ('hospitalName' in draftFilters) {
+                        return draftFilters.hospitalName ?? ''
+                    }
+                    return state
+                },
+                resetFilters: () => '',
+                clearHospitalSuggestions: () => '',
             },
         ],
         kpisLoaded: [
@@ -423,72 +453,28 @@ export const beOneUsageLogic = kea([
                     }),
             },
         ],
-        provinceOptions: [
-            [] as { value: string; label: string }[],
+        registrationOptions: [
+            null as BeOneRegistrationOptionsResponse | null,
             {
-                loadProvinceOptions: () =>
-                    keepPreviousOnError(values.provinceOptions, async () => {
-                        const res = await api.queryHogQL(
-                            buildDistinctPropQuery(DEFAULT_BEONE_FILTERS, 'province', 'province_label'),
-                            QUERY_TAGS,
-                            QUERY_OPTIONS
-                        )
-                        return parseDistinctPropRows(res.results)
+                loadRegistrationOptions: () =>
+                    keepPreviousOnError(values.registrationOptions, async () => {
+                        return await fetchRegistrationOptions(values.locale === 'en' ? 'en' : 'zh')
                     }),
             },
         ],
-        cityOptions: [
-            [] as { value: string; label: string }[],
+        hospitalSuggestions: [
+            null as BeOneHospitalsResponse | null,
             {
-                loadCityOptions: () =>
-                    keepPreviousOnError(values.cityOptions, async () => {
-                        if (!values.draftFilters.province) {
-                            return []
-                        }
-                        const scoped = {
-                            ...DEFAULT_BEONE_FILTERS,
+                loadHospitalSuggestions: () =>
+                    keepPreviousOnError(values.hospitalSuggestions, async () => {
+                        return await fetchHospitalSuggestions({
+                            q: values.hospitalSearch.trim(),
                             province: values.draftFilters.province,
-                        }
-                        const res = await api.queryHogQL(
-                            buildDistinctPropQuery(scoped, 'city', 'city_label'),
-                            QUERY_TAGS,
-                            QUERY_OPTIONS
-                        )
-                        return parseDistinctPropRows(res.results)
+                            city: values.draftFilters.city,
+                            lang: values.locale === 'en' ? 'en' : 'zh',
+                        })
                     }),
-            },
-        ],
-        hospitalLevelOptions: [
-            [] as { value: string; label: string }[],
-            {
-                loadHospitalLevelOptions: () =>
-                    keepPreviousOnError(values.hospitalLevelOptions, async () => {
-                        const res = await api.queryHogQL(
-                            buildDistinctPropQuery(DEFAULT_BEONE_FILTERS, 'hospital_level', 'hospital_level_label'),
-                            QUERY_TAGS,
-                            QUERY_OPTIONS
-                        )
-                        return parseDistinctPropRows(res.results)
-                    }),
-            },
-        ],
-        titleOptions: [
-            [] as { value: string; label: string }[],
-            {
-                loadTitleOptions: () =>
-                    keepPreviousOnError(values.titleOptions, async () => {
-                        const kind = values.draftFilters.titleKind
-                        if (!kind) {
-                            return []
-                        }
-                        const labelProp = kind === 'clinical_title' ? 'clinical_title_label' : 'teaching_title_label'
-                        const res = await api.queryHogQL(
-                            buildDistinctPropQuery(DEFAULT_BEONE_FILTERS, kind, labelProp),
-                            QUERY_TAGS,
-                            QUERY_OPTIONS
-                        )
-                        return parseDistinctPropRows(res.results)
-                    }),
+                clearHospitalSuggestions: () => null,
             },
         ],
     })),
@@ -499,6 +485,42 @@ export const beOneUsageLogic = kea([
                 effectiveFilters(filters, drilldown),
         ],
         copy: [(s) => [s.locale], (locale: BeOneLocale) => getBeOneCopy(locale)],
+        provinceOptions: [
+            (s) => [s.registrationOptions],
+            (registrationOptions: BeOneRegistrationOptionsResponse | null): BeOneSelectOption[] =>
+                provinceOptionsFromRegions(registrationOptions?.regions ?? []),
+        ],
+        cityOptions: [
+            (s) => [s.registrationOptions, s.draftFilters],
+            (
+                registrationOptions: BeOneRegistrationOptionsResponse | null,
+                draftFilters: BeOneUsageFilters
+            ): BeOneSelectOption[] => cityOptionsFromRegions(registrationOptions?.regions ?? [], draftFilters.province),
+        ],
+        hospitalLevelOptions: [
+            (s) => [s.registrationOptions],
+            (registrationOptions: BeOneRegistrationOptionsResponse | null): BeOneSelectOption[] =>
+                optionsOfKind(registrationOptions?.options ?? [], 'hospital_level'),
+        ],
+        titleOptions: [
+            (s) => [s.registrationOptions, s.draftFilters],
+            (
+                registrationOptions: BeOneRegistrationOptionsResponse | null,
+                draftFilters: BeOneUsageFilters
+            ): BeOneSelectOption[] => {
+                if (!draftFilters.titleKind) {
+                    return []
+                }
+                return optionsOfKind(registrationOptions?.options ?? [], draftFilters.titleKind)
+            },
+        ],
+        hospitalOptions: [
+            (s) => [s.hospitalSuggestions, s.copy],
+            (
+                hospitalSuggestions: BeOneHospitalsResponse | null,
+                copy: ReturnType<typeof getBeOneCopy>
+            ): BeOneSelectOption[] => hospitalSelectOptions(hospitalSuggestions, copy.home.hospitalOther),
+        ],
         trendGranularity: [
             (s) => [s.queryFilters],
             (filters: BeOneUsageFilters): BeOneTrendGranularity => trendGranularityForFilters(filters),
@@ -575,12 +597,24 @@ export const beOneUsageLogic = kea([
             actions.reloadFeed()
         },
         setDraftFilters: ({ draftFilters }) => {
-            if ('province' in draftFilters) {
-                actions.loadCityOptions()
+            if ('province' in draftFilters || 'city' in draftFilters) {
+                // Doc: clearing province/city must drop the hospital pick; reload top-30 for the new scope.
+                actions.clearHospitalSuggestions()
+                actions.searchHospitals()
             }
-            if ('titleKind' in draftFilters) {
-                actions.loadTitleOptions()
-            }
+        },
+        setHospitalSearch: () => {
+            actions.searchHospitals()
+        },
+        searchHospitals: async (_, breakpoint) => {
+            await breakpoint(HOSPITAL_SEARCH_DEBOUNCE_MS)
+            actions.loadHospitalSuggestions()
+        },
+        setLocale: () => {
+            actions.loadRegistrationOptions()
+        },
+        loadHomeSettingsSuccess: () => {
+            actions.loadRegistrationOptions()
         },
         loadHomeSettings: async () => {
             try {
@@ -619,8 +653,7 @@ export const beOneUsageLogic = kea([
     })),
     afterMount(({ actions, cache }) => {
         actions.loadHomeSettings()
-        actions.loadProvinceOptions()
-        actions.loadHospitalLevelOptions()
+        actions.loadRegistrationOptions()
 
         cache.disposables.add(() => {
             const id = window.setInterval(() => {

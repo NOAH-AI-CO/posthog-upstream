@@ -5,6 +5,7 @@ export const beoneCopyEn: typeof beoneCopyZh = {
         home: 'Usage overview',
         activity: 'Live activity',
         insights: 'Insights',
+        settings: 'Settings',
         more: 'More',
     },
     home: {
@@ -72,6 +73,7 @@ export const beoneCopyEn: typeof beoneCopyZh = {
         dateLastMonth: '1 month',
         dateLast3Months: '3 months',
         dateLastHalfYear: 'Half year',
-        hospitalNamePlaceholder: 'Optional (not in telemetry yet)',
+        hospitalNamePlaceholder: 'Search hospital name',
+        hospitalOther: 'Other / enter manually',
     },
 }

@@ -3,6 +3,7 @@ export const beoneCopyZh = {
         home: '用量总览',
         activity: '实时动态',
         insights: '分析洞察',
+        settings: '设置',
         more: '更多',
     },
     home: {
@@ -70,7 +71,8 @@ export const beoneCopyZh = {
         dateLastMonth: '一个月',
         dateLast3Months: '三个月',
         dateLastHalfYear: '半年',
-        hospitalNamePlaceholder: '可选（埋点暂无医院名）',
+        hospitalNamePlaceholder: '输入医院名称搜索',
+        hospitalOther: '其他／手动填写',
     },
 } as const
 

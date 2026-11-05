@@ -1,9 +1,10 @@
-import { LemonButton, LemonCard, LemonInput, LemonSelect } from '@posthog/lemon-ui'
+import { LemonButton, LemonCard, LemonInputSelect, LemonSelect } from '@posthog/lemon-ui'
 
 import { DateFilter } from 'lib/components/DateFilter/DateFilter'
 
 import type { BeOneCopy } from '~/beone/copy'
 import { moduleFilterOptions } from '~/beone/modules'
+import { OTHER_HOSPITAL_VALUE, type BeOneSelectOption } from '~/beone/registrationApi'
 import { DateMappingOption } from '~/types'
 
 import type { BeOneUsageFilters } from '../beOneUsageQueries'
@@ -20,6 +21,9 @@ export function BeOneUsageFilters({
     cityOptions,
     hospitalLevelOptions,
     titleOptions,
+    hospitalOptions,
+    hospitalSearchLoading,
+    onHospitalSearch,
 }: {
     draft: BeOneUsageFilters
     copy: BeOneCopy
@@ -28,10 +32,13 @@ export function BeOneUsageFilters({
     onReset: () => void
     onSaveDefault: () => void
     saving?: boolean
-    provinceOptions: { value: string; label: string }[]
-    cityOptions: { value: string; label: string }[]
-    hospitalLevelOptions: { value: string; label: string }[]
-    titleOptions: { value: string; label: string }[]
+    provinceOptions: BeOneSelectOption[]
+    cityOptions: BeOneSelectOption[]
+    hospitalLevelOptions: BeOneSelectOption[]
+    titleOptions: BeOneSelectOption[]
+    hospitalOptions: BeOneSelectOption[]
+    hospitalSearchLoading?: boolean
+    onHospitalSearch: (query: string) => void
 }): JSX.Element {
     const ALL = { value: '', label: copy.home.filterAll }
     const dateOptions: DateMappingOption[] = [
@@ -40,6 +47,8 @@ export function BeOneUsageFilters({
         { key: copy.home.dateLast3Months, values: ['-90d'], defaultInterval: 'day' },
         { key: copy.home.dateLastHalfYear, values: ['-180d'], defaultInterval: 'month' },
     ]
+
+    const hospitalValue = draft.hospitalName && draft.hospitalName !== OTHER_HOSPITAL_VALUE ? [draft.hospitalName] : []
 
     return (
         <LemonCard hoverEffect={false} className="p-4" data-attr="beone-usage-filters">
@@ -100,7 +109,7 @@ export function BeOneUsageFilters({
                     {copy.home.filterProvince}
                     <LemonSelect
                         value={draft.province}
-                        onChange={(province) => onChange({ province: province ?? '', city: '' })}
+                        onChange={(province) => onChange({ province: province ?? '', city: '', hospitalName: '' })}
                         options={[ALL, ...provinceOptions]}
                         size="small"
                     />
@@ -109,7 +118,7 @@ export function BeOneUsageFilters({
                     {copy.home.filterCity}
                     <LemonSelect
                         value={draft.city}
-                        onChange={(city) => onChange({ city: city ?? '' })}
+                        onChange={(city) => onChange({ city: city ?? '', hospitalName: '' })}
                         options={[ALL, ...cityOptions]}
                         size="small"
                         disabledReason={!draft.province ? copy.home.filterProvince : undefined}
@@ -152,14 +161,28 @@ export function BeOneUsageFilters({
                         disabledReason={!draft.titleKind ? copy.home.filterTitleKind : undefined}
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-secondary min-w-40">
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-56">
                     {copy.home.filterHospitalName}
-                    <LemonInput
-                        value={draft.hospitalName}
-                        onChange={(hospitalName) => onChange({ hospitalName })}
-                        placeholder={copy.home.hospitalNamePlaceholder}
+                    <LemonInputSelect
+                        mode="single"
                         size="small"
-                        allowClear
+                        value={hospitalValue}
+                        options={hospitalOptions.map((o) => ({ key: o.value, label: o.label }))}
+                        placeholder={copy.home.hospitalNamePlaceholder}
+                        loading={hospitalSearchLoading}
+                        disableFiltering
+                        allowCustomValues
+                        formatCreateLabel={(input) => `${copy.home.hospitalOther}: ${input}`}
+                        onInputChange={(query) => onHospitalSearch(query)}
+                        onChange={(values) => {
+                            const next = values[0] ?? ''
+                            if (next === OTHER_HOSPITAL_VALUE) {
+                                onChange({ hospitalName: '' })
+                                return
+                            }
+                            onChange({ hospitalName: next })
+                        }}
+                        data-attr="beone-hospital-typeahead"
                     />
                 </label>
             </div>
