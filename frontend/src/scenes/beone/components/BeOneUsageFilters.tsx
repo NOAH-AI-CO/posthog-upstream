@@ -76,6 +76,19 @@ export function BeOneUsageFilters({
                     />
                 </label>
                 <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
+                    {copy.home.filterEventSource}
+                    <LemonSelect
+                        value={draft.eventSource}
+                        onChange={(eventSource) => onChange({ eventSource: eventSource ?? '' })}
+                        options={[
+                            ALL,
+                            { value: 'frontend', label: copy.home.filterEventSourceFrontend },
+                            { value: 'backend', label: copy.home.filterEventSourceBackend },
+                        ]}
+                        size="small"
+                    />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-secondary min-w-32">
                     {copy.home.filterUserType}
                     <LemonSelect
                         value={draft.userType}

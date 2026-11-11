@@ -57,6 +57,7 @@ describe('beOneUsageQueries', () => {
         const clauses = buildFilterClauses({
             ...DEFAULT_BEONE_FILTERS,
             module: 'thesis',
+            eventSource: 'frontend',
             userType: 'customer',
             accountKind: 'individual',
             province: '440000',
@@ -68,6 +69,7 @@ describe('beOneUsageQueries', () => {
         })
         const joined = clauses.join('\n')
         expect(joined).toContain(`toString(properties.module) = ${escapeHogQLString('thesis')}`)
+        expect(joined).toContain(`toString(properties.event_source) = ${escapeHogQLString('frontend')}`)
         expect(joined).toContain(`toString(properties.user_type) = ${escapeHogQLString('customer')}`)
         expect(joined).toContain(`toString(properties.account_kind) = ${escapeHogQLString('individual')}`)
         expect(joined).toContain(`toString(properties.province) = ${escapeHogQLString('440000')}`)

@@ -10,6 +10,7 @@ export type BeOneUsageFilters = {
     dateFrom: string
     dateTo: string | null
     module: string
+    eventSource: string
     userType: string
     accountKind: string
     province: string
@@ -24,6 +25,7 @@ export const DEFAULT_BEONE_FILTERS: BeOneUsageFilters = {
     dateFrom: '-90d',
     dateTo: null,
     module: '',
+    eventSource: '',
     userType: '',
     accountKind: '',
     province: '',
@@ -163,6 +165,9 @@ export function buildFilterClauses(filters: BeOneUsageFilters): string[] {
     }
     if (filters.module) {
         clauses.push(`toString(properties.module) = ${escapeHogQLString(filters.module)}`)
+    }
+    if (filters.eventSource) {
+        clauses.push(`toString(properties.event_source) = ${escapeHogQLString(filters.eventSource)}`)
     }
     if (filters.userType) {
         clauses.push(`toString(properties.user_type) = ${escapeHogQLString(filters.userType)}`)
