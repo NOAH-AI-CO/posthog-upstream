@@ -2,17 +2,25 @@ import { urls } from 'scenes/urls'
 
 import { ActivityTab } from '~/types'
 
-import { beoneCopyZh } from './copy.zh'
+import { getBeOneCopy, type BeOneLocale } from './copy'
 
 export type BeOneNavId = 'home' | 'activity' | 'insights' | 'settings'
 
-export const BEONE_PRIMARY_NAV: ReadonlyArray<{
+export type BeOnePrimaryNavItem = {
     id: BeOneNavId
     label: string
     path: () => string
-}> = [
-    { id: 'home', label: beoneCopyZh.nav.home, path: () => urls.projectRoot() },
-    { id: 'activity', label: beoneCopyZh.nav.activity, path: () => urls.activity(ActivityTab.ExploreEvents) },
-    { id: 'insights', label: beoneCopyZh.nav.insights, path: () => urls.insights() },
-    { id: 'settings', label: beoneCopyZh.nav.settings, path: () => urls.settings('project') },
-]
+}
+
+export function getBeOnePrimaryNav(locale: BeOneLocale = 'zh'): ReadonlyArray<BeOnePrimaryNavItem> {
+    const { nav } = getBeOneCopy(locale)
+    return [
+        { id: 'home', label: nav.home, path: () => urls.projectRoot() },
+        { id: 'activity', label: nav.activity, path: () => urls.activity(ActivityTab.ExploreEvents) },
+        { id: 'insights', label: nav.insights, path: () => urls.insights() },
+        { id: 'settings', label: nav.settings, path: () => urls.settings('project') },
+    ]
+}
+
+/** @deprecated prefer getBeOnePrimaryNav(locale) — kept for callers that only need zh defaults */
+export const BEONE_PRIMARY_NAV = getBeOnePrimaryNav('zh')

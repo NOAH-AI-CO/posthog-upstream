@@ -34,8 +34,8 @@ import { humanFriendlyDetailedTime } from 'lib/utils/datetime'
 import { removeProjectIdIfPresent } from 'lib/utils/kea-router'
 import { urls } from 'scenes/urls'
 
-import { beoneCopyZh } from '~/beone/copy.zh'
-import { BEONE_PRIMARY_NAV, BeOneNavId } from '~/beone/nav'
+import { beOneLocaleLogic } from '~/beone/beOneLocaleLogic'
+import { getBeOnePrimaryNav, BeOneNavId } from '~/beone/nav'
 import { NavLink } from '~/layout/panel-layout/ai-first/NavLink'
 import { PanelLayoutNavIdentifier, panelLayoutLogic } from '~/layout/panel-layout/panelLayoutLogic'
 import { iconForType } from '~/layout/panel-layout/ProjectTree/defaultTree'
@@ -177,6 +177,8 @@ export function NavTabBrowse(): JSX.Element {
     const { recentItems, recentItemsLoading } = useValues(navRecentsLogic)
     const { isEditMode, checkedTools } = useValues(editToolsLogic)
     const { enterEditMode, saveAndExitEditMode, toggleTool } = useActions(editToolsLogic)
+    const { locale, copy: beoneCopy } = useValues(beOneLocaleLogic)
+    const beonePrimaryNav = getBeOnePrimaryNav(locale)
     const currentPath = removeProjectIdIfPresent(pathname)
 
     function handlePanelTriggerClick(item: PanelLayoutNavIdentifier): void {
@@ -213,7 +215,7 @@ export function NavTabBrowse(): JSX.Element {
                     <SectionTrigger icon={<IconFolder />} label="Project" isCollapsed={isLayoutNavCollapsed} />
                 )}
                 <Collapsible.Panel className={cn('pl-2 pt-1', isLayoutNavCollapsed && 'items-center pl-0')}>
-                    {BEONE_PRIMARY_NAV.map((item) => (
+                    {beonePrimaryNav.map((item) => (
                         <NavLink
                             key={item.id}
                             to={item.path()}
@@ -240,11 +242,7 @@ export function NavTabBrowse(): JSX.Element {
                 data-attr="nav-section-more"
             >
                 {!isLayoutNavCollapsed && (
-                    <SectionTrigger
-                        icon={<IconApps />}
-                        label={beoneCopyZh.nav.more}
-                        isCollapsed={isLayoutNavCollapsed}
-                    />
+                    <SectionTrigger icon={<IconApps />} label={beoneCopy.nav.more} isCollapsed={isLayoutNavCollapsed} />
                 )}
                 <Collapsible.Panel className={cn('pl-2 pt-1', isLayoutNavCollapsed && 'items-center pl-0')}>
                     {featureFlags[FEATURE_FLAGS.QUICKSTART_HOMEPAGE] === 'test' && (

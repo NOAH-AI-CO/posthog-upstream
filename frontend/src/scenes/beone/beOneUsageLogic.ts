@@ -1,9 +1,10 @@
-import { actions, afterMount, kea, listeners, path, reducers, selectors } from 'kea'
+import { actions, afterMount, connect, kea, listeners, path, reducers, selectors } from 'kea'
 import { loaders } from 'kea-loaders'
 
 import api from 'lib/api'
 
-import { getBeOneCopy, type BeOneLocale } from '~/beone/copy'
+import { beOneLocaleLogic } from '~/beone/beOneLocaleLogic'
+import { type BeOneLocale } from '~/beone/copy'
 import {
     cityOptionsFromRegions,
     fetchHospitalSuggestions,
@@ -83,6 +84,10 @@ function effectiveFilters(filters: BeOneUsageFilters, drilldown: BeOneDrilldown)
 
 export const beOneUsageLogic = kea([
     path(['scenes', 'beone', 'beOneUsageLogic']),
+    connect({
+        values: [beOneLocaleLogic, ['locale', 'copy']],
+        actions: [beOneLocaleLogic, ['setLocale']],
+    }),
     actions({
         setDraftFilters: (draftFilters: Partial<BeOneUsageFilters>) => ({ draftFilters }),
         applyFilters: true,
@@ -94,7 +99,6 @@ export const beOneUsageLogic = kea([
         clearDrilldown: true,
         hideWidget: (widgetId: BeOneWidgetId) => ({ widgetId }),
         showWidget: (widgetId: BeOneWidgetId) => ({ widgetId }),
-        setLocale: (locale: BeOneLocale) => ({ locale }),
         saveDefault: true,
         loadHomeSettings: true,
         loadHomeSettingsSuccess: (settings: BeOneHomeSettings) => ({ settings }),
@@ -144,13 +148,6 @@ export const beOneUsageLogic = kea([
                 showWidget: (state, { widgetId }) => state.filter((id) => id !== widgetId),
                 loadHomeSettingsSuccess: (state, { settings }) =>
                     settings.hiddenWidgets ? [...settings.hiddenWidgets] : state,
-            },
-        ],
-        locale: [
-            'zh' as BeOneLocale,
-            {
-                setLocale: (_, { locale }) => locale,
-                loadHomeSettingsSuccess: (state, { settings }) => settings.locale ?? state,
             },
         ],
         savingDefault: [
@@ -484,7 +481,6 @@ export const beOneUsageLogic = kea([
             (filters: BeOneUsageFilters, drilldown: BeOneDrilldown): BeOneUsageFilters =>
                 effectiveFilters(filters, drilldown),
         ],
-        copy: [(s) => [s.locale], (locale: BeOneLocale) => getBeOneCopy(locale)],
         provinceOptions: [
             (s) => [s.registrationOptions],
             (registrationOptions: BeOneRegistrationOptionsResponse | null): BeOneSelectOption[] =>
@@ -613,7 +609,10 @@ export const beOneUsageLogic = kea([
         setLocale: () => {
             actions.loadRegistrationOptions()
         },
-        loadHomeSettingsSuccess: () => {
+        loadHomeSettingsSuccess: ({ settings }) => {
+            if (settings.locale) {
+                actions.setLocale(settings.locale)
+            }
             actions.loadRegistrationOptions()
         },
         loadHomeSettings: async () => {

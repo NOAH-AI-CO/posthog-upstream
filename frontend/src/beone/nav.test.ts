@@ -1,8 +1,17 @@
-import { BEONE_PRIMARY_NAV } from './nav'
+import { getBeOnePrimaryNav } from './nav'
 
-describe('BEONE_PRIMARY_NAV', () => {
+describe('getBeOnePrimaryNav', () => {
     it('has primary entries in order including settings', () => {
-        expect(BEONE_PRIMARY_NAV.map((i) => i.id)).toEqual(['home', 'activity', 'insights', 'settings'])
-        expect(BEONE_PRIMARY_NAV.map((i) => i.label)).toEqual(['用量总览', '实时动态', '分析洞察', '设置'])
+        expect(getBeOnePrimaryNav('zh').map((i) => i.id)).toEqual(['home', 'activity', 'insights', 'settings'])
+        expect(getBeOnePrimaryNav('zh').map((i) => i.label)).toEqual(['用量总览', '实时动态', '分析洞察', '设置'])
+    })
+
+    it('switches labels for English locale', () => {
+        expect(getBeOnePrimaryNav('en').map((i) => i.label)).toEqual([
+            'Usage overview',
+            'Live activity',
+            'Insights',
+            'Settings',
+        ])
     })
 })
